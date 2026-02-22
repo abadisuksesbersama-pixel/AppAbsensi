@@ -349,7 +349,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzp9JreX_fpG-GFie4IptRew_GtTQzQta7aRQVW__EDwEL290Tc6KXC48J2ssiw0mD8Yw/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxJGlbNpEU0EfQM6fVBtflyufgeh0bFerGA8mn2IRhVxC8HXJ65woWV9_bEUYpOzSEPmw/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -506,7 +506,9 @@
                     showAlert("Gagal mengambil data dari server: " + result.message);
                 }
             } catch (error) { 
-                showAlert("Kesalahan API (getData): " + error.message);
+                let msg = error.message;
+                if(msg.includes('fetch')) msg = "Koneksi ke server terputus. Pastikan kode Apps Script sudah diperbarui.";
+                showAlert("Kesalahan API (getData): " + msg);
                 console.error(error);
             } finally { hideLoading(); }
         }
@@ -551,7 +553,9 @@
                     showAlert("Error memuat database: " + result.message);
                 }
             } catch (error) { 
-                showAlert("Kesalahan API (getAdminData): " + error.message);
+                let msg = error.message;
+                if(msg.includes('fetch')) msg = "Koneksi terputus. Pastikan kode Backend Apps Script sudah diperbarui dengan versi terbaru.";
+                showAlert("Kesalahan API (getAdminData): " + msg);
             } finally { hideLoading(); }
         }
 
