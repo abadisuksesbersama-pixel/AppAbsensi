@@ -352,7 +352,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbyFEwzfvutk1A3JZWdyNgEXFzjPOlPNCJYCTgyhdFCXqli5w7xrfcebRdHRxxENm1BJjQ/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbz9a2UcsQ8jP7GRlqv6Un9kNzVb4D5Epz3hxL9Q-zDdjguxdb85D6jAB089UKdDHx3F/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -418,7 +418,11 @@
             };
 
             try {
-                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                const response = await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload) 
+                });
                 const result = await response.json();
 
                 if (result.status === "success") {
@@ -427,20 +431,22 @@
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
                     
-                    // Jika Admin / Super Admin, munculkan menu dan load data admin
+                    // PERBAIKAN: Await secara berurutan agar tidak bentrok di server Google
                     if (currentUserRole === 'Super Admin' || currentUserRole === 'Admin') {
                         document.getElementById('adminTabs').style.display = 'flex';
-                        fetchAdminData();
+                        await fetchAdminData();
                     } else {
                         document.getElementById('adminTabs').style.display = 'none';
                     }
 
-                    fetchDataPendukung();
-                } else { throw new Error(result.message); }
+                    await fetchDataPendukung();
+                } else { 
+                    throw new Error(result.message); 
+                }
             } catch (error) {
-                // Menampilkan pesan error asli dari server (misal: "Username salah")
+                // Menampilkan pesan error asli dari server
                 if(error.message.includes('Unexpected') || error.message.includes('fetch')) {
-                    errorDiv.textContent = "Koneksi gagal. Pastikan URL Web App benar & Deploy Apps Script diperbarui.";
+                    errorDiv.textContent = "Koneksi gagal. Pastikan URL Web App benar & Izin Deploy Apps Script adalah 'Anyone'.";
                 } else {
                     errorDiv.textContent = error.message;
                 }
@@ -465,7 +471,11 @@
         async function fetchDataPendukung() {
             showLoading("Memuat data formulir...");
             try {
-                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
+                const response = await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'getData' }) 
+                });
                 const result = await response.json();
                 
                 if (result.status === "success") {
@@ -491,7 +501,7 @@
                     showAlert("Gagal mengambil data dari server: " + result.message);
                 }
             } catch (error) { 
-                showAlert("Kesalahan koneksi mengambil data. Pastikan Izin Deploy Apps Script adalah 'Anyone'.");
+                showAlert("Kesalahan API (getData): " + error.message);
                 console.error(error);
             } finally { hideLoading(); }
         }
@@ -521,7 +531,11 @@
         async function fetchAdminData() {
             showLoading("Memuat Database...");
             try {
-                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'getAdminData' }) });
+                const response = await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'getAdminData' }) 
+                });
                 const result = await response.json();
                 if (result.status === "success") {
                     adminKaryawanData = result.karyawan;
@@ -532,7 +546,7 @@
                     showAlert("Error memuat database: " + result.message);
                 }
             } catch (error) { 
-                showAlert("Error koneksi database. Pastikan Izin Deploy adalah 'Anyone'.");
+                showAlert("Kesalahan API (getAdminData): " + error.message);
             } finally { hideLoading(); }
         }
 
@@ -625,7 +639,11 @@
             
             mkModal.hide(); showLoading("Menyimpan Data Karyawan...");
             try {
-                await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload) 
+                });
                 await fetchAdminData(); await fetchDataPendukung();
             } catch (err) {
                 hideLoading();
@@ -637,7 +655,11 @@
             if(confirm('Yakin ingin menghapus Karyawan dengan Badge: ' + id_badge + '?')) {
                 showLoading("Menghapus Data...");
                 try {
-                    await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) });
+                    await fetch(scriptURL, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) 
+                    });
                     await fetchAdminData(); await fetchDataPendukung();
                 } catch(err) {
                     hideLoading();
@@ -685,7 +707,11 @@
             
             mlModal.hide(); showLoading("Menyimpan Data Akses...");
             try {
-                await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload) 
+                });
                 await fetchAdminData();
             } catch(err) {
                 hideLoading();
@@ -697,7 +723,11 @@
             if(confirm('Yakin ingin menghapus Akses Login dengan ID: ' + id_login + '?')) {
                 showLoading("Menghapus Akses...");
                 try {
-                    await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudLogin', method: 'delete', id_login: id_login }) });
+                    await fetch(scriptURL, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'crudLogin', method: 'delete', id_login: id_login }) 
+                    });
                     await fetchAdminData();
                 } catch(err) {
                     hideLoading();
@@ -752,7 +782,11 @@
             };
 
             try {
-                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                const response = await fetch(scriptURL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload) 
+                });
                 const result = await response.json();
                 if (result.status === "success") {
                     statusMsg.className = "alert alert-success mt-3 text-center";
