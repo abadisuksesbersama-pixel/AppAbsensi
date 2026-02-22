@@ -120,19 +120,21 @@
                     <!-- TAB 1: FORM ABSENSI (DEFAULT) -->
                     <div id="sec-absen">
                         <form id="absenForm">
-                            <!-- Pencarian Badge -->
+                            <!-- Pencarian Nama Karyawan -->
                             <div class="mb-4 p-3 bg-light rounded border border-primary-subtle">
-                                <label class="form-label fw-bold text-primary">ID / Badge Karyawan</label>
-                                <input type="text" id="Badge" class="form-control form-control-lg border-primary" list="badgeList" placeholder="Ketik atau pilih Badge Anda" required autocomplete="off">
-                                <datalist id="badgeList"></datalist>
-                                <div class="form-text text-muted small"><i class="bi bi-info-circle"></i> Ketik Badge untuk mengisi data otomatis.</div>
+                                <label class="form-label fw-bold text-primary">Nama Karyawan</label>
+                                <input type="text" id="nama" class="form-control form-control-lg border-primary" list="namaList" placeholder="Ketik atau pilih Nama Anda" required autocomplete="off">
+                                <datalist id="namaList"></datalist>
+                                <div class="form-text text-muted small"><i class="bi bi-info-circle"></i> Ketik Nama untuk mengisi data otomatis.</div>
                             </div>
                             <!-- Data Diri Auto-fill -->
-                            <div class="row g-3 mb-4">
+                            <div class="row g-3 mb-4 d-none"> <!-- Menyembunyikan baris ID/Badge -->
                                 <div class="col-md-12">
-                                    <label class="form-label text-muted small mb-1">Nama Lengkap</label>
-                                    <input type="text" id="nama" class="form-control bg-light" readonly required>
+                                    <label class="form-label text-muted small mb-1">ID / Badge Karyawan</label>
+                                    <input type="text" id="Badge" class="form-control bg-light" readonly required>
                                 </div>
+                            </div>
+                            <div class="row g-3 mb-4">
                                 <div class="col-md-6">
                                     <label class="form-label text-muted small mb-1">Jabatan</label>
                                     <input type="text" id="Jabatan" class="form-control bg-light" readonly required>
@@ -350,7 +352,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbxk_GCeE4NjbtHsObvGKusqwkN4EVWuVdp4jUdht9TSGUAJ49JId9YhM_YLM6zunzRTjA/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxlman3JAfs3OkccqoGqJ4Y4UclgCa3aGtzWXg3jplXU5IFOJ-Q4N4_XDppUQaqJU6_iQ/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -463,13 +465,16 @@
                 
                 if (result.status === "success") {
                     globalKaryawanList = result.karyawan;
-                    const badgeList = document.getElementById('badgeList');
-                    badgeList.innerHTML = '';
+                    
+                    // Masukkan ke datalist NAMA Karyawan
+                    const namaList = document.getElementById('namaList');
+                    namaList.innerHTML = '';
                     globalKaryawanList.forEach(emp => {
                         const option = document.createElement('option');
-                        option.value = emp.badge; option.text = emp.nama;
-                        badgeList.appendChild(option);
+                        option.value = emp.nama; // Value utamanya sekarang adalah nama
+                        namaList.appendChild(option);
                     });
+                    
                     const statusSelect = document.getElementById('Status_Absensi');
                     statusSelect.innerHTML = '<option value="" disabled selected>-- Pilih Status --</option>';
                     result.statusAbsensi.forEach(status => {
@@ -486,16 +491,19 @@
             } finally { hideLoading(); }
         }
 
-        // Auto-fill Absensi
-        document.getElementById('Badge').addEventListener('input', function() {
-            const found = globalKaryawanList.find(emp => emp.badge === this.value);
+        // Auto-fill Absensi Berdasarkan Nama Karyawan
+        document.getElementById('nama').addEventListener('input', function() {
+            // Konversi ke huruf kecil untuk pencarian yang lebih aman
+            const inputVal = this.value.toLowerCase();
+            const found = globalKaryawanList.find(emp => emp.nama.toLowerCase() === inputVal);
+            
             if (found) {
-                document.getElementById('nama').value = found.nama;
+                document.getElementById('Badge').value = found.badge;
                 document.getElementById('Jabatan').value = found.jabatan;
                 document.getElementById('no_hp').value = found.no_hp;
                 this.classList.add('is-valid');
             } else {
-                document.getElementById('nama').value = "";
+                document.getElementById('Badge').value = "";
                 document.getElementById('Jabatan').value = "";
                 document.getElementById('no_hp').value = "";
                 this.classList.remove('is-valid');
@@ -720,7 +728,8 @@
 
         document.getElementById('absenForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (document.getElementById('nama').value === "") return showAlert("Badge Karyawan tidak valid. Ketik dan pilih Badge dari daftar.");
+            // Validasi berdasarkan field Badge, karena kalau nama benar maka Badge pasti terisi otomatis
+            if (document.getElementById('Badge').value === "") return showAlert("Nama Karyawan tidak valid. Ketik dan pilih Nama dari daftar.");
 
             const btnSubmit = document.getElementById('btnSubmitAbsen');
             const statusMsg = document.getElementById('statusMessage');
@@ -744,7 +753,7 @@
                     statusMsg.className = "alert alert-success mt-3 text-center";
                     statusMsg.innerHTML = '<i class="bi bi-check-circle-fill"></i> Berhasil! Data kehadiran terkirim.';
                     document.getElementById('absenForm').reset();
-                    document.getElementById('Badge').classList.remove('is-valid');
+                    document.getElementById('nama').classList.remove('is-valid');
                     document.getElementById('locationStatus').classList.add('d-none');
                 } else throw new Error(result.message);
             } catch (error) {
