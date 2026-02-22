@@ -18,6 +18,9 @@
             background: rgba(255,255,255,0.8); z-index: 1050; display: none;
             justify-content: center; align-items: center; flex-direction: column;
         }
+        .nav-pills .nav-link { border-radius: 50px; margin-right: 10px; color: #495057; font-weight: 500;}
+        .nav-pills .nav-link.active { background-color: #0d6efd; color: white; }
+        .table-responsive { font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -63,15 +66,29 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- BAGIAN 2: MAIN APP (FORM ABSENSI) -->
+        <!-- BAGIAN 2: MAIN APP (DASHBOARD) -->
         <!-- ========================================== -->
-        <div id="appContainer" class="w-100" style="max-width: 700px;">
+        <div id="appContainer" class="w-100" style="max-width: 900px;">
+            
+            <!-- ADMIN NAVIGATION TABS (Hanya muncul jika Admin/Super Admin) -->
+            <ul class="nav nav-pills mb-4" id="adminTabs" style="display: none;">
+                <li class="nav-item">
+                    <a class="nav-link active" id="tab-absen" href="#" onclick="switchTab('absen')"><i class="bi bi-calendar-check me-1"></i> Form Absensi</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-login" href="#" onclick="switchTab('login')"><i class="bi bi-shield-lock me-1"></i> Akun Login</a>
+                </li>
+            </ul>
+
             <div class="card card-custom overflow-hidden">
-                <!-- Header -->
+                <!-- Header Global -->
                 <div class="bg-primary-custom text-white p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="fw-bold mb-0">Formulir Absensi</h4>
+                            <h4 class="fw-bold mb-0" id="headerTitle">Formulir Absensi</h4>
                             <small id="userRoleBadge" class="badge bg-light text-primary mt-1">Role</small>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-light" onclick="logout()">
@@ -81,70 +98,230 @@
                 </div>
 
                 <div class="card-body p-4 p-sm-5">
-                    <form id="absenForm">
-                        
-                        <!-- Pencarian Badge -->
-                        <div class="mb-4 p-3 bg-light rounded border border-primary-subtle">
-                            <label class="form-label fw-bold text-primary">ID / Badge Karyawan</label>
-                            <input type="text" id="Badge" class="form-control form-control-lg border-primary" list="badgeList" placeholder="Ketik atau pilih Badge Anda" required autocomplete="off">
-                            <datalist id="badgeList"></datalist>
-                            <div class="form-text text-muted small"><i class="bi bi-info-circle"></i> Ketik Badge untuk mengisi data otomatis.</div>
-                        </div>
+                    
+                    <!-- TAB 1: FORM ABSENSI (DEFAULT) -->
+                    <div id="sec-absen">
+                        <form id="absenForm">
+                            <!-- Pencarian Badge -->
+                            <div class="mb-4 p-3 bg-light rounded border border-primary-subtle">
+                                <label class="form-label fw-bold text-primary">ID / Badge Karyawan</label>
+                                <input type="text" id="Badge" class="form-control form-control-lg border-primary" list="badgeList" placeholder="Ketik atau pilih Badge Anda" required autocomplete="off">
+                                <datalist id="badgeList"></datalist>
+                                <div class="form-text text-muted small"><i class="bi bi-info-circle"></i> Ketik Badge untuk mengisi data otomatis.</div>
+                            </div>
+                            <!-- Data Diri Auto-fill -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-12">
+                                    <label class="form-label text-muted small mb-1">Nama Lengkap</label>
+                                    <input type="text" id="nama" class="form-control bg-light" readonly required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small mb-1">Jabatan</label>
+                                    <input type="text" id="Jabatan" class="form-control bg-light" readonly required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small mb-1">No HP</label>
+                                    <input type="text" id="no_hp" class="form-control bg-light" readonly required>
+                                </div>
+                            </div>
+                            <!-- Status Absensi Dropdown -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Status Kehadiran</label>
+                                <select id="Status_Absensi" class="form-select form-select-lg" required>
+                                    <option value="" disabled selected>-- Pilih Status --</option>
+                                </select>
+                            </div>
+                            <!-- Lokasi GPS -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-bold mb-0">Titik Koordinat Lokasi (GPS)</label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="getLocation()">
+                                        <i class="bi bi-geo-alt-fill"></i> Ambil Lokasi
+                                    </button>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <input type="text" id="Latitude" class="form-control text-center" placeholder="Latitude" readonly required>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="text" id="Langtitude" class="form-control text-center" placeholder="Longitude" readonly required>
+                                    </div>
+                                </div>
+                                <div id="locationStatus" class="form-text mt-2 d-none"></div>
+                            </div>
+                            <hr class="my-4">
+                            <!-- Tombol Submit -->
+                            <button type="submit" id="btnSubmitAbsen" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm">
+                                <i class="bi bi-send-check me-2"></i> Kirim Data Absensi
+                            </button>
+                            <div id="statusMessage" class="alert d-none mt-3 text-center" role="alert"></div>
+                        </form>
+                    </div>
 
-                        <!-- Data Diri Auto-fill -->
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-12">
-                                <label class="form-label text-muted small mb-1">Nama Lengkap</label>
-                                <input type="text" id="nama" class="form-control bg-light" readonly required>
+                    <!-- TAB 2: KELOLA KARYAWAN -->
+                    <div id="sec-karyawan" class="d-none">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold">Manajemen Karyawan</h5>
+                            <button class="btn btn-primary btn-sm" onclick="openModalKaryawan('add')"><i class="bi bi-plus-lg"></i> Tambah Karyawan</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Badge</th>
+                                        <th>Nama</th>
+                                        <th>Jabatan</th>
+                                        <th>No HP</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyKaryawan">
+                                    <!-- Terisi via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: KELOLA LOGIN -->
+                    <div id="sec-login" class="d-none">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold">Manajemen Akses Login</h5>
+                            <button class="btn btn-primary btn-sm" onclick="openModalLogin('add')"><i class="bi bi-plus-lg"></i> Tambah Akun</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID Login</th>
+                                        <th>Username</th>
+                                        <th>Password</th>
+                                        <th>Role / Keterangan</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyLogin">
+                                    <!-- Terisi via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL FORM KARYAWAN -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="modalKaryawan" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalKaryawanTitle">Tambah Karyawan</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formKaryawan">
+                        <input type="hidden" id="kar_action_method">
+                        <input type="hidden" id="kar_old_badge">
+                        <div class="mb-2">
+                            <label class="form-label small">ID Badge</label>
+                            <input type="text" class="form-control form-control-sm" id="kar_badge" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Nama Karyawan</label>
+                            <input type="text" class="form-control form-control-sm" id="kar_nama" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Jenis Kelamin</label>
+                                <select class="form-select form-select-sm" id="kar_jk">
+                                    <option value="Laki-laki">Laki-laki</option>
+                                    <option value="Perempuan">Perempuan</option>
+                                </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small mb-1">Jabatan</label>
-                                <input type="text" id="Jabatan" class="form-control bg-light" readonly required>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Status Kerja</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_statusKerja" placeholder="Karyawan/Kontrak">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small mb-1">No HP</label>
-                                <input type="text" id="no_hp" class="form-control bg-light" readonly required>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Jabatan</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_jabatan" required>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Status Pernikahan</label>
+                                <select class="form-select form-select-sm" id="kar_statusNikah">
+                                    <option value="Menikah">Menikah</option>
+                                    <option value="Belum Menikah">Belum Menikah</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">NIK KTP</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_nik">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">No KK</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_kk">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">No HP</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_hp">
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Keterangan</label>
+                                <input type="text" class="form-control form-control-sm" id="kar_ket">
                             </div>
                         </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveKaryawan()">Simpan Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        <!-- Status Absensi Dropdown -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Status Kehadiran</label>
-                            <select id="Status_Absensi" class="form-select form-select-lg" required>
-                                <option value="" disabled selected>-- Pilih Status --</option>
-                                <!-- Option akan diisi otomatis dari server -->
+    <!-- ========================================== -->
+    <!-- MODAL FORM LOGIN -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="modalLogin" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="modalLoginTitle">Tambah Akun Login</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formLogin">
+                        <input type="hidden" id="log_action_method">
+                        <input type="hidden" id="log_old_id">
+                        <div class="mb-3">
+                            <label class="form-label small">ID Login</label>
+                            <input type="text" class="form-control" id="log_id" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Username</label>
+                            <input type="text" class="form-control" id="log_username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Password</label>
+                            <input type="text" class="form-control" id="log_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Role Akses</label>
+                            <select class="form-select" id="log_role" required>
+                                <option value="Super Admin">Super Admin</option>
+                                <option value="Admin">Admin</option>
+                                <option value="User Karyawan">User Karyawan</option>
                             </select>
                         </div>
-
-                        <!-- Lokasi GPS -->
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label class="form-label fw-bold mb-0">Titik Koordinat Lokasi (GPS)</label>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="getLocation()">
-                                    <i class="bi bi-geo-alt-fill"></i> Ambil Lokasi
-                                </button>
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="text" id="Latitude" class="form-control text-center" placeholder="Latitude" readonly required>
-                                </div>
-                                <div class="col-6">
-                                    <input type="text" id="Langtitude" class="form-control text-center" placeholder="Longitude" readonly required>
-                                </div>
-                            </div>
-                            <div id="locationStatus" class="form-text mt-2 d-none"></div>
-                        </div>
-
-                        <hr class="my-4">
-
-                        <!-- Tombol Submit -->
-                        <button type="submit" id="btnSubmitAbsen" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm">
-                            <i class="bi bi-send-check me-2"></i> Kirim Data Absensi
-                        </button>
-                        
-                        <div id="statusMessage" class="alert d-none mt-3 text-center" role="alert"></div>
-
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-dark" onclick="saveLogin()">Simpan Akun</button>
                 </div>
             </div>
         </div>
@@ -154,15 +331,18 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // ========================================================
-        // KONFIGURASI PENTING: GANTI DENGAN URL WEB APP ANDA
-        // ========================================================
         const scriptURL = 'https://script.google.com/macros/s/AKfycbxeUzL1sSvx0d3FBnXIjZznlWrk0HZ8RaWXEYbtXwHk5qzXxo1_cZUb_pS5Rsrc63-b9w/exec'; 
         
-        // Variabel Global
         let globalKaryawanList = [];
+        let adminKaryawanData = [];
+        let adminLoginData = [];
+        let currentUserRole = '';
+
         const overlay = document.getElementById('loadingOverlay');
         const loadingText = document.getElementById('loadingText');
+
+        const mkModal = new bootstrap.Modal(document.getElementById('modalKaryawan'));
+        const mlModal = new bootstrap.Modal(document.getElementById('modalLogin'));
 
         function showLoading(text) {
             loadingText.textContent = text;
@@ -172,9 +352,27 @@
             overlay.style.display = 'none';
         }
 
-        // ========================================================
+        // ==========================================
+        // UI HELPERS (TABS)
+        // ==========================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-pills .nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            document.getElementById('sec-absen').classList.add('d-none');
+            document.getElementById('sec-karyawan').classList.add('d-none');
+            document.getElementById('sec-login').classList.add('d-none');
+
+            document.getElementById('sec-' + tabName).classList.remove('d-none');
+
+            if(tabName === 'absen') document.getElementById('headerTitle').textContent = 'Formulir Absensi';
+            if(tabName === 'karyawan') document.getElementById('headerTitle').textContent = 'Manajemen Karyawan';
+            if(tabName === 'login') document.getElementById('headerTitle').textContent = 'Manajemen Akses';
+        }
+
+        // ==========================================
         // 1. SISTEM LOGIN
-        // ========================================================
+        // ==========================================
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnLogin');
@@ -191,27 +389,25 @@
             };
 
             try {
-                const response = await fetch(scriptURL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-                
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
 
                 if (result.status === "success") {
-                    // Tampilkan role di header
-                    document.getElementById('userRoleBadge').textContent = "Akses: " + result.user.role;
-                    
-                    // Pindah layar
+                    currentUserRole = result.user.role;
+                    document.getElementById('userRoleBadge').textContent = "Akses: " + currentUserRole;
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
                     
-                    // Fetch data pendukung
+                    // Jika Admin / Super Admin, munculkan menu dan load data admin
+                    if (currentUserRole === 'Super Admin' || currentUserRole === 'Admin') {
+                        document.getElementById('adminTabs').style.display = 'flex';
+                        fetchAdminData();
+                    } else {
+                        document.getElementById('adminTabs').style.display = 'none';
+                    }
+
                     fetchDataPendukung();
-                } else {
-                    throw new Error(result.message);
-                }
+                } else { throw new Error(result.message); }
             } catch (error) {
                 errorDiv.textContent = error.message;
                 errorDiv.classList.remove('d-none');
@@ -226,135 +422,254 @@
             document.getElementById('absenForm').reset();
             document.getElementById('appContainer').style.display = 'none';
             document.getElementById('loginContainer').style.display = 'block';
+            switchTab('absen'); // reset tab
         }
 
-        // ========================================================
-        // 2. AMBIL DATA KARYAWAN & STATUS DARI SERVER
-        // ========================================================
+        // ==========================================
+        // 2. FETCH DATA UNTUK ABSENSI
+        // ==========================================
         async function fetchDataPendukung() {
-            showLoading("Mengambil Data Karyawan...");
+            showLoading("Memuat data formulir...");
             try {
-                const response = await fetch(scriptURL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: 'getData' })
-                });
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
                 const result = await response.json();
                 
                 if (result.status === "success") {
                     globalKaryawanList = result.karyawan;
-                    
-                    // Masukkan ke datalist Badge
                     const badgeList = document.getElementById('badgeList');
                     badgeList.innerHTML = '';
                     globalKaryawanList.forEach(emp => {
                         const option = document.createElement('option');
-                        option.value = emp.badge;
-                        option.text = emp.nama;
+                        option.value = emp.badge; option.text = emp.nama;
                         badgeList.appendChild(option);
                     });
-
-                    // Masukkan ke dropdown Status Absensi
                     const statusSelect = document.getElementById('Status_Absensi');
-                    statusSelect.innerHTML = '<option value="" disabled selected>-- Pilih Status --</option>'; // reset
+                    statusSelect.innerHTML = '<option value="" disabled selected>-- Pilih Status --</option>';
                     result.statusAbsensi.forEach(status => {
                         const option = document.createElement('option');
-                        option.value = status;
-                        option.text = status;
+                        option.value = status; option.text = status;
                         statusSelect.appendChild(option);
                     });
-                } else {
-                    alert("Gagal mengambil data dari server: " + result.message);
                 }
-            } catch (error) {
-                alert("Kesalahan koneksi saat mengambil data: " + error.message);
-            } finally {
-                hideLoading();
-            }
+            } catch (error) { console.error(error); } finally { hideLoading(); }
         }
 
-        // ========================================================
-        // 3. AUTO-FILL SAAT KETIK BADGE
-        // ========================================================
+        // Auto-fill Absensi
         document.getElementById('Badge').addEventListener('input', function() {
-            const inputVal = this.value;
-            const inputNama = document.getElementById('nama');
-            const inputJabatan = document.getElementById('Jabatan');
-            const inputHp = document.getElementById('no_hp');
-
-            // Cari apakah badge yang diketik ada di globalKaryawanList
-            const found = globalKaryawanList.find(emp => emp.badge === inputVal);
-
+            const found = globalKaryawanList.find(emp => emp.badge === this.value);
             if (found) {
-                // Auto Fill
-                inputNama.value = found.nama;
-                inputJabatan.value = found.jabatan;
-                inputHp.value = found.no_hp;
+                document.getElementById('nama').value = found.nama;
+                document.getElementById('Jabatan').value = found.jabatan;
+                document.getElementById('no_hp').value = found.no_hp;
                 this.classList.add('is-valid');
             } else {
-                // Bersihkan jika salah
-                inputNama.value = "";
-                inputJabatan.value = "";
-                inputHp.value = "";
+                document.getElementById('nama').value = "";
+                document.getElementById('Jabatan').value = "";
+                document.getElementById('no_hp').value = "";
                 this.classList.remove('is-valid');
             }
         });
 
-        // ========================================================
-        // 4. LOKASI GPS
-        // ========================================================
+        // ==========================================
+        // 3. FETCH ADMIN DATA (CRUD)
+        // ==========================================
+        async function fetchAdminData() {
+            showLoading("Memuat Database...");
+            try {
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'getAdminData' }) });
+                const result = await response.json();
+                if (result.status === "success") {
+                    adminKaryawanData = result.karyawan;
+                    adminLoginData = result.login;
+                    renderKaryawanTable();
+                    renderLoginTable();
+                }
+            } catch (error) { alert("Error memuat database: " + error); } 
+            finally { hideLoading(); }
+        }
+
+        function renderKaryawanTable() {
+            const tbody = document.getElementById('tbodyKaryawan');
+            tbody.innerHTML = '';
+            adminKaryawanData.forEach((row, index) => {
+                if(row[0] === "") return; // Skip empty rows
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${row[0]}</strong></td>
+                        <td>${row[1]}</td>
+                        <td>${row[4]}</td>
+                        <td>${row[10]}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary py-0" onclick="openModalKaryawan('edit', ${index})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteKaryawan('${row[0]}')"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function renderLoginTable() {
+            const tbody = document.getElementById('tbodyLogin');
+            tbody.innerHTML = '';
+            adminLoginData.forEach((row, index) => {
+                if(row[0] === "") return;
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${row[0]}</strong></td>
+                        <td>${row[1]}</td>
+                        <td>${row[2]}</td>
+                        <td><span class="badge bg-secondary">${row[3]}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary py-0" onclick="openModalLogin('edit', ${index})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteLogin('${row[0]}')"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        // ==========================================
+        // 4. CRUD ACTIONS KARYAWAN
+        // ==========================================
+        function openModalKaryawan(method, index = null) {
+            document.getElementById('formKaryawan').reset();
+            document.getElementById('kar_action_method').value = method;
+            document.getElementById('kar_badge').readOnly = (method === 'edit');
+            
+            if(method === 'edit') {
+                const row = adminKaryawanData[index];
+                document.getElementById('modalKaryawanTitle').textContent = 'Edit Karyawan';
+                document.getElementById('kar_old_badge').value = row[0];
+                document.getElementById('kar_badge').value = row[0];
+                document.getElementById('kar_nama').value = row[1];
+                document.getElementById('kar_jk').value = row[2];
+                document.getElementById('kar_statusKerja').value = row[3];
+                document.getElementById('kar_jabatan').value = row[4];
+                document.getElementById('kar_statusNikah').value = row[5];
+                document.getElementById('kar_nik').value = row[6];
+                document.getElementById('kar_kk').value = row[7];
+                document.getElementById('kar_hp').value = row[10];
+                document.getElementById('kar_ket').value = row[11];
+            } else {
+                document.getElementById('modalKaryawanTitle').textContent = 'Tambah Karyawan';
+            }
+            mkModal.show();
+        }
+
+        async function saveKaryawan() {
+            const method = document.getElementById('kar_action_method').value;
+            const badge = document.getElementById('kar_badge').value;
+            const nama = document.getElementById('kar_nama').value;
+            if(!badge || !nama) return alert('Badge & Nama wajib diisi!');
+
+            const payload = {
+                action: 'crudKaryawan', method: method, id_badge: document.getElementById('kar_old_badge').value,
+                rowData: {
+                    badge: badge, nama: nama,
+                    jk: document.getElementById('kar_jk').value,
+                    statusKerja: document.getElementById('kar_statusKerja').value,
+                    jabatan: document.getElementById('kar_jabatan').value,
+                    statusNikah: document.getElementById('kar_statusNikah').value,
+                    nik: document.getElementById('kar_nik').value,
+                    noKk: document.getElementById('kar_kk').value,
+                    hp: document.getElementById('kar_hp').value,
+                    ket: document.getElementById('kar_ket').value
+                }
+            };
+            
+            mkModal.hide(); showLoading("Menyimpan Data Karyawan...");
+            await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+            await fetchAdminData(); await fetchDataPendukung();
+        }
+
+        async function deleteKaryawan(id_badge) {
+            if(confirm('Yakin ingin menghapus Karyawan dengan Badge: ' + id_badge + '?')) {
+                showLoading("Menghapus Data...");
+                await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) });
+                await fetchAdminData(); await fetchDataPendukung();
+            }
+        }
+
+        // ==========================================
+        // 5. CRUD ACTIONS LOGIN
+        // ==========================================
+        function openModalLogin(method, index = null) {
+            document.getElementById('formLogin').reset();
+            document.getElementById('log_action_method').value = method;
+            document.getElementById('log_id').readOnly = (method === 'edit');
+            
+            if(method === 'edit') {
+                const row = adminLoginData[index];
+                document.getElementById('modalLoginTitle').textContent = 'Edit Akun Login';
+                document.getElementById('log_old_id').value = row[0];
+                document.getElementById('log_id').value = row[0];
+                document.getElementById('log_username').value = row[1];
+                document.getElementById('log_password').value = row[2];
+                document.getElementById('log_role').value = row[3];
+            } else {
+                document.getElementById('modalLoginTitle').textContent = 'Tambah Akun Login';
+            }
+            mlModal.show();
+        }
+
+        async function saveLogin() {
+            const method = document.getElementById('log_action_method').value;
+            const id = document.getElementById('log_id').value;
+            const user = document.getElementById('log_username').value;
+            if(!id || !user) return alert('ID & Username wajib diisi!');
+
+            const payload = {
+                action: 'crudLogin', method: method, id_login: document.getElementById('log_old_id').value,
+                rowData: {
+                    id: id, username: user,
+                    password: document.getElementById('log_password').value,
+                    role: document.getElementById('log_role').value
+                }
+            };
+            
+            mlModal.hide(); showLoading("Menyimpan Data Akses...");
+            await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+            await fetchAdminData();
+        }
+
+        async function deleteLogin(id_login) {
+            if(confirm('Yakin ingin menghapus Akses Login dengan ID: ' + id_login + '?')) {
+                showLoading("Menghapus Akses...");
+                await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudLogin', method: 'delete', id_login: id_login }) });
+                await fetchAdminData();
+            }
+        }
+
+        // ==========================================
+        // 6. FUNGSI GPS DAN KIRIM ABSEN (DEFAULT)
+        // ==========================================
         function getLocation() {
             const statusText = document.getElementById('locationStatus');
-            const latInput = document.getElementById('Latitude');
-            const longInput = document.getElementById('Langtitude');
-
             statusText.classList.remove('d-none', 'text-danger', 'text-success');
             statusText.classList.add('text-primary');
             statusText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Mencari lokasi GPS...';
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        latInput.value = position.coords.latitude;
-                        longInput.value = position.coords.longitude;
+                    (pos) => {
+                        document.getElementById('Latitude').value = pos.coords.latitude;
+                        document.getElementById('Langtitude').value = pos.coords.longitude;
                         statusText.classList.replace('text-primary', 'text-success');
-                        statusText.innerHTML = '<i class="bi bi-check-circle-fill"></i> Lokasi akurat ditemukan!';
+                        statusText.innerHTML = '<i class="bi bi-check-circle-fill"></i> Lokasi ditemukan!';
                     },
-                    (error) => {
-                        let msg = "Gagal mengambil lokasi.";
-                        if(error.code == 1) msg = "Izin akses lokasi ditolak oleh Anda.";
-                        if(error.code == 2) msg = "Sinyal GPS tidak tersedia.";
-                        if(error.code == 3) msg = "Waktu pencarian lokasi habis.";
+                    (err) => {
                         statusText.classList.replace('text-primary', 'text-danger');
-                        statusText.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> ' + msg;
-                    },
-                    { enableHighAccuracy: true }
+                        statusText.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Gagal mengambil lokasi.';
+                    }, { enableHighAccuracy: true }
                 );
-            } else {
-                statusText.classList.replace('text-primary', 'text-danger');
-                statusText.innerText = "Browser perangkat Anda tidak mendukung GPS.";
             }
         }
 
-        // ========================================================
-        // 5. KIRIM DATA ABSENSI
-        // ========================================================
         document.getElementById('absenForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            // Validasi: Pastikan nama terisi (artinya Badge valid)
-            if (document.getElementById('nama').value === "") {
-                alert("ID/Badge Karyawan tidak ditemukan. Silakan cek kembali.");
-                document.getElementById('Badge').focus();
-                return;
-            }
+            if (document.getElementById('nama').value === "") return alert("Badge Karyawan tidak valid.");
 
             const btnSubmit = document.getElementById('btnSubmitAbsen');
             const statusMsg = document.getElementById('statusMessage');
-            
-            btnSubmit.disabled = true;
-            btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim Data...';
-            statusMsg.classList.add('d-none');
+            btnSubmit.disabled = true; statusMsg.classList.add('d-none');
 
             const payload = {
                 action: 'absen',
@@ -368,39 +683,19 @@
             };
 
             try {
-                const response = await fetch(scriptURL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
-                
                 if (result.status === "success") {
                     statusMsg.className = "alert alert-success mt-3 text-center";
                     statusMsg.innerHTML = '<i class="bi bi-check-circle-fill"></i> Berhasil! Data kehadiran terkirim.';
-                    
-                    // Reset Field (kecuali status kalau mau dipertahankan)
-                    document.getElementById('Badge').value = "";
+                    document.getElementById('absenForm').reset();
                     document.getElementById('Badge').classList.remove('is-valid');
-                    document.getElementById('nama').value = "";
-                    document.getElementById('Jabatan').value = "";
-                    document.getElementById('no_hp').value = "";
-                    document.getElementById('Status_Absensi').value = "";
-                    document.getElementById('Latitude').value = "";
-                    document.getElementById('Langtitude').value = "";
                     document.getElementById('locationStatus').classList.add('d-none');
-
-                } else {
-                    throw new Error(result.message);
-                }
+                } else throw new Error(result.message);
             } catch (error) {
                 statusMsg.className = "alert alert-danger mt-3 text-center";
                 statusMsg.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Gagal! ' + error.message;
-            } finally {
-                btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<i class="bi bi-send-check me-2"></i> Kirim Data Absensi';
-            }
+            } finally { btnSubmit.disabled = false; }
         });
     </script>
 </body>
