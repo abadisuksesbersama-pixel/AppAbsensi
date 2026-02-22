@@ -93,7 +93,8 @@
                 <li class="nav-item">
                     <a class="nav-link active" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
                 </li>
-                <li class="nav-item">
+                <!-- Ditambahkan ID li-tab-login agar mudah disembunyikan berdasarkan role -->
+                <li class="nav-item" id="li-tab-login">
                     <a class="nav-link" id="tab-login" href="#" onclick="switchTab('login')"><i class="bi bi-shield-lock me-1"></i> Akun Login</a>
                 </li>
             </ul>
@@ -199,7 +200,7 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: KELOLA LOGIN (Hanya untuk Admin/Superadmin) -->
+                    <!-- TAB 3: KELOLA LOGIN (Hanya untuk Superadmin) -->
                     <div id="sec-login" class="d-none">
                         <div class="d-flex justify-content-between mb-3">
                             <h5 class="fw-bold">Manajemen Akses Login</h5>
@@ -349,7 +350,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbxJGlbNpEU0EfQM6fVBtflyufgeh0bFerGA8mn2IRhVxC8HXJ65woWV9_bEUYpOzSEPmw/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzrizZJF5YK47d29mnFrMSXEGMMnPv14AK-U8XKdjHRq-GM5_-qPMemeyhrz_5HcnO8vA/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -429,14 +430,23 @@
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
                     
-                    // PENYESUAIAN ROLE: Admin/Superadmin hanya Kelola Data. User hanya Absensi.
-                    if (currentUserRole === 'Super Admin' || currentUserRole === 'Admin') {
+                    // PENYESUAIAN ROLE: 
+                    // Super Admin: Bisa kelola Data Karyawan & Akun Login
+                    // Admin: Hanya bisa kelola Data Karyawan
+                    // User: Hanya Form Absensi
+                    if (currentUserRole === 'Super Admin') {
                         document.getElementById('adminTabs').style.display = 'flex';
-                        switchTab('karyawan'); // Langsung buka halaman manajemen karyawan
+                        document.getElementById('li-tab-login').style.display = 'block'; // Tampilkan menu login
+                        switchTab('karyawan'); 
+                        await fetchAdminData();
+                    } else if (currentUserRole === 'Admin') {
+                        document.getElementById('adminTabs').style.display = 'flex';
+                        document.getElementById('li-tab-login').style.display = 'none'; // Sembunyikan menu login
+                        switchTab('karyawan'); 
                         await fetchAdminData();
                     } else {
                         document.getElementById('adminTabs').style.display = 'none';
-                        switchTab('absen'); // Langsung buka formulir absensi
+                        switchTab('absen'); 
                         await fetchDataPendukung();
                     }
 
