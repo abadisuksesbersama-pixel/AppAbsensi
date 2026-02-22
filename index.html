@@ -352,7 +352,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbyoGeqqk_qP7NbWUMjswlqYUO309NphxGXMaaPRMaq_Lm-L3oy0AKmmzShCrxOs7ss47w/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbyFEwzfvutk1A3JZWdyNgEXFzjPOlPNCJYCTgyhdFCXqli5w7xrfcebRdHRxxENm1BJjQ/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -438,7 +438,12 @@
                     fetchDataPendukung();
                 } else { throw new Error(result.message); }
             } catch (error) {
-                errorDiv.textContent = "Koneksi gagal/Username salah. (Pastikan Apps Script diatur ke 'Anyone')";
+                // Menampilkan pesan error asli dari server (misal: "Username salah")
+                if(error.message.includes('Unexpected') || error.message.includes('fetch')) {
+                    errorDiv.textContent = "Koneksi gagal. Pastikan URL Web App benar & Deploy Apps Script diperbarui.";
+                } else {
+                    errorDiv.textContent = error.message;
+                }
                 errorDiv.classList.remove('d-none');
             } finally {
                 btn.disabled = false;
