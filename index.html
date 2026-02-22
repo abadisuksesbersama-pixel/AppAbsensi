@@ -31,6 +31,24 @@
         <h5 class="mt-3 text-secondary" id="loadingText">Memuat Data...</h5>
     </div>
 
+    <!-- Global Alert Modal -->
+    <div class="modal fade" id="globalAlertModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white border-0 py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Perhatian</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4 text-dark" id="globalAlertText" style="font-size: 0.95rem;">
+                    <!-- Message goes here -->
+                </div>
+                <div class="modal-footer justify-content-center border-0 pt-0">
+                    <button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container py-4 sm:py-5 min-vh-100 d-flex flex-column justify-content-center align-items-center">
         
         <!-- ========================================== -->
@@ -331,7 +349,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbxeUzL1sSvx0d3FBnXIjZznlWrk0HZ8RaWXEYbtXwHk5qzXxo1_cZUb_pS5Rsrc63-b9w/exec'; 
+        // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxk_GCeE4NjbtHsObvGKusqwkN4EVWuVdp4jUdht9TSGUAJ49JId9YhM_YLM6zunzRTjA/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -341,8 +360,16 @@
         const overlay = document.getElementById('loadingOverlay');
         const loadingText = document.getElementById('loadingText');
 
+        // Inisialisasi Modals
         const mkModal = new bootstrap.Modal(document.getElementById('modalKaryawan'));
         const mlModal = new bootstrap.Modal(document.getElementById('modalLogin'));
+        const gaModal = new bootstrap.Modal(document.getElementById('globalAlertModal'));
+
+        // Pengganti Alert Bawaan Browser
+        function showAlert(msg) {
+            document.getElementById('globalAlertText').textContent = msg;
+            gaModal.show();
+        }
 
         function showLoading(text) {
             loadingText.textContent = text;
@@ -409,7 +436,7 @@
                     fetchDataPendukung();
                 } else { throw new Error(result.message); }
             } catch (error) {
-                errorDiv.textContent = error.message;
+                errorDiv.textContent = "Koneksi gagal/Username salah. (Pastikan Apps Script diatur ke 'Anyone')";
                 errorDiv.classList.remove('d-none');
             } finally {
                 btn.disabled = false;
@@ -450,8 +477,13 @@
                         option.value = status; option.text = status;
                         statusSelect.appendChild(option);
                     });
+                } else {
+                    showAlert("Gagal mengambil data dari server: " + result.message);
                 }
-            } catch (error) { console.error(error); } finally { hideLoading(); }
+            } catch (error) { 
+                showAlert("Kesalahan koneksi mengambil data. Pastikan Izin Deploy Apps Script adalah 'Anyone'.");
+                console.error(error);
+            } finally { hideLoading(); }
         }
 
         // Auto-fill Absensi
@@ -483,9 +515,12 @@
                     adminLoginData = result.login;
                     renderKaryawanTable();
                     renderLoginTable();
+                } else {
+                    showAlert("Error memuat database: " + result.message);
                 }
-            } catch (error) { alert("Error memuat database: " + error); } 
-            finally { hideLoading(); }
+            } catch (error) { 
+                showAlert("Error koneksi database. Pastikan Izin Deploy adalah 'Anyone'.");
+            } finally { hideLoading(); }
         }
 
         function renderKaryawanTable() {
@@ -558,7 +593,7 @@
             const method = document.getElementById('kar_action_method').value;
             const badge = document.getElementById('kar_badge').value;
             const nama = document.getElementById('kar_nama').value;
-            if(!badge || !nama) return alert('Badge & Nama wajib diisi!');
+            if(!badge || !nama) return showAlert('Badge & Nama wajib diisi!');
 
             const payload = {
                 action: 'crudKaryawan', method: method, id_badge: document.getElementById('kar_old_badge').value,
@@ -576,15 +611,25 @@
             };
             
             mkModal.hide(); showLoading("Menyimpan Data Karyawan...");
-            await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
-            await fetchAdminData(); await fetchDataPendukung();
+            try {
+                await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                await fetchAdminData(); await fetchDataPendukung();
+            } catch (err) {
+                hideLoading();
+                showAlert("Gagal menyimpan. Cek kembali koneksi internet Anda.");
+            }
         }
 
         async function deleteKaryawan(id_badge) {
             if(confirm('Yakin ingin menghapus Karyawan dengan Badge: ' + id_badge + '?')) {
                 showLoading("Menghapus Data...");
-                await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) });
-                await fetchAdminData(); await fetchDataPendukung();
+                try {
+                    await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) });
+                    await fetchAdminData(); await fetchDataPendukung();
+                } catch(err) {
+                    hideLoading();
+                    showAlert("Gagal menghapus data.");
+                }
             }
         }
 
@@ -614,7 +659,7 @@
             const method = document.getElementById('log_action_method').value;
             const id = document.getElementById('log_id').value;
             const user = document.getElementById('log_username').value;
-            if(!id || !user) return alert('ID & Username wajib diisi!');
+            if(!id || !user) return showAlert('ID & Username wajib diisi!');
 
             const payload = {
                 action: 'crudLogin', method: method, id_login: document.getElementById('log_old_id').value,
@@ -626,15 +671,25 @@
             };
             
             mlModal.hide(); showLoading("Menyimpan Data Akses...");
-            await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
-            await fetchAdminData();
+            try {
+                await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
+                await fetchAdminData();
+            } catch(err) {
+                hideLoading();
+                showAlert("Gagal menyimpan akses login.");
+            }
         }
 
         async function deleteLogin(id_login) {
             if(confirm('Yakin ingin menghapus Akses Login dengan ID: ' + id_login + '?')) {
                 showLoading("Menghapus Akses...");
-                await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudLogin', method: 'delete', id_login: id_login }) });
-                await fetchAdminData();
+                try {
+                    await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'crudLogin', method: 'delete', id_login: id_login }) });
+                    await fetchAdminData();
+                } catch(err) {
+                    hideLoading();
+                    showAlert("Gagal menghapus akses.");
+                }
             }
         }
 
@@ -665,7 +720,7 @@
 
         document.getElementById('absenForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (document.getElementById('nama').value === "") return alert("Badge Karyawan tidak valid.");
+            if (document.getElementById('nama').value === "") return showAlert("Badge Karyawan tidak valid. Ketik dan pilih Badge dari daftar.");
 
             const btnSubmit = document.getElementById('btnSubmitAbsen');
             const statusMsg = document.getElementById('statusMessage');
