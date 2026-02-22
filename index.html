@@ -60,7 +60,7 @@
                     <div class="text-center mb-4">
                         <i class="bi bi-person-circle text-primary" style="font-size: 4rem;"></i>
                         <h3 class="fw-bold mt-2">Login Portal</h3>
-                        <p class="text-muted small">Silakan masuk untuk melakukan absensi</p>
+                        <p class="text-muted small">Silakan masuk untuk melanjutkan</p>
                     </div>
                     
                     <form id="loginForm">
@@ -91,10 +91,7 @@
             <!-- ADMIN NAVIGATION TABS (Hanya muncul jika Admin/Super Admin) -->
             <ul class="nav nav-pills mb-4" id="adminTabs" style="display: none;">
                 <li class="nav-item">
-                    <a class="nav-link active" id="tab-absen" href="#" onclick="switchTab('absen')"><i class="bi bi-calendar-check me-1"></i> Form Absensi</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
+                    <a class="nav-link active" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="tab-login" href="#" onclick="switchTab('login')"><i class="bi bi-shield-lock me-1"></i> Akun Login</a>
@@ -117,8 +114,8 @@
 
                 <div class="card-body p-4 p-sm-5">
                     
-                    <!-- TAB 1: FORM ABSENSI (DEFAULT) -->
-                    <div id="sec-absen">
+                    <!-- TAB 1: FORM ABSENSI (Hanya untuk User Karyawan) -->
+                    <div id="sec-absen" class="d-none">
                         <form id="absenForm">
                             <!-- Pencarian Nama Karyawan -->
                             <div class="mb-4 p-3 bg-light rounded border border-primary-subtle">
@@ -178,7 +175,7 @@
                         </form>
                     </div>
 
-                    <!-- TAB 2: KELOLA KARYAWAN -->
+                    <!-- TAB 2: KELOLA KARYAWAN (Hanya untuk Admin/Superadmin) -->
                     <div id="sec-karyawan" class="d-none">
                         <div class="d-flex justify-content-between mb-3">
                             <h5 class="fw-bold">Manajemen Karyawan</h5>
@@ -202,7 +199,7 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: KELOLA LOGIN -->
+                    <!-- TAB 3: KELOLA LOGIN (Hanya untuk Admin/Superadmin) -->
                     <div id="sec-login" class="d-none">
                         <div class="d-flex justify-content-between mb-3">
                             <h5 class="fw-bold">Manajemen Akses Login</h5>
@@ -352,7 +349,7 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbz9a2UcsQ8jP7GRlqv6Un9kNzVb4D5Epz3hxL9Q-zDdjguxdb85D6jAB089UKdDHx3F/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzp9JreX_fpG-GFie4IptRew_GtTQzQta7aRQVW__EDwEL290Tc6KXC48J2ssiw0mD8Yw/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
@@ -386,7 +383,8 @@
         // ==========================================
         function switchTab(tabName) {
             document.querySelectorAll('.nav-pills .nav-link').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.add('active');
+            const activeTab = document.getElementById('tab-' + tabName);
+            if(activeTab) activeTab.classList.add('active'); // Mencegah error jika tab tidak ada
 
             document.getElementById('sec-absen').classList.add('d-none');
             document.getElementById('sec-karyawan').classList.add('d-none');
@@ -400,7 +398,7 @@
         }
 
         // ==========================================
-        // 1. SISTEM LOGIN
+        // 1. SISTEM LOGIN DENGAN PENGATURAN ROLE BARU
         // ==========================================
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -431,15 +429,17 @@
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
                     
-                    // PERBAIKAN: Await secara berurutan agar tidak bentrok di server Google
+                    // PENYESUAIAN ROLE: Admin/Superadmin hanya Kelola Data. User hanya Absensi.
                     if (currentUserRole === 'Super Admin' || currentUserRole === 'Admin') {
                         document.getElementById('adminTabs').style.display = 'flex';
+                        switchTab('karyawan'); // Langsung buka halaman manajemen karyawan
                         await fetchAdminData();
                     } else {
                         document.getElementById('adminTabs').style.display = 'none';
+                        switchTab('absen'); // Langsung buka formulir absensi
+                        await fetchDataPendukung();
                     }
 
-                    await fetchDataPendukung();
                 } else { 
                     throw new Error(result.message); 
                 }
@@ -462,7 +462,12 @@
             document.getElementById('absenForm').reset();
             document.getElementById('appContainer').style.display = 'none';
             document.getElementById('loginContainer').style.display = 'block';
-            switchTab('absen'); // reset tab
+            
+            // Bersihkan data dan navigasi
+            document.getElementById('adminTabs').style.display = 'none';
+            document.getElementById('sec-absen').classList.add('d-none');
+            document.getElementById('sec-karyawan').classList.add('d-none');
+            document.getElementById('sec-login').classList.add('d-none');
         }
 
         // ==========================================
@@ -644,7 +649,7 @@
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload) 
                 });
-                await fetchAdminData(); await fetchDataPendukung();
+                await fetchAdminData();
             } catch (err) {
                 hideLoading();
                 showAlert("Gagal menyimpan. Cek kembali koneksi internet Anda.");
@@ -660,7 +665,7 @@
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({ action: 'crudKaryawan', method: 'delete', id_badge: id_badge }) 
                     });
-                    await fetchAdminData(); await fetchDataPendukung();
+                    await fetchAdminData();
                 } catch(err) {
                     hideLoading();
                     showAlert("Gagal menghapus data.");
