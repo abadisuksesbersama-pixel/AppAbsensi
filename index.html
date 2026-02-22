@@ -86,14 +86,16 @@
         <!-- ========================================== -->
         <!-- BAGIAN 2: MAIN APP (DASHBOARD) -->
         <!-- ========================================== -->
-        <div id="appContainer" class="w-100" style="max-width: 900px;">
+        <div id="appContainer" class="w-100" style="max-width: 950px;">
             
-            <!-- ADMIN NAVIGATION TABS (Hanya muncul jika Admin/Super Admin) -->
+            <!-- ADMIN NAVIGATION TABS -->
             <ul class="nav nav-pills mb-4" id="adminTabs" style="display: none;">
-                <li class="nav-item">
-                    <a class="nav-link active" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
+                <li class="nav-item" id="li-tab-data-absen">
+                    <a class="nav-link" id="tab-data-absen" href="#" onclick="switchTab('data-absen')"><i class="bi bi-card-list me-1"></i> Data Absensi</a>
                 </li>
-                <!-- Ditambahkan ID li-tab-login agar mudah disembunyikan berdasarkan role -->
+                <li class="nav-item" id="li-tab-karyawan">
+                    <a class="nav-link" id="tab-karyawan" href="#" onclick="switchTab('karyawan')"><i class="bi bi-people me-1"></i> Data Karyawan</a>
+                </li>
                 <li class="nav-item" id="li-tab-login">
                     <a class="nav-link" id="tab-login" href="#" onclick="switchTab('login')"><i class="bi bi-shield-lock me-1"></i> Akun Login</a>
                 </li>
@@ -174,6 +176,31 @@
                             </button>
                             <div id="statusMessage" class="alert d-none mt-3 text-center" role="alert"></div>
                         </form>
+                    </div>
+
+                    <!-- TAB DATA ABSENSI (Hanya untuk Super Admin) -->
+                    <div id="sec-data-absen" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0">Data Rekap Absensi</h5>
+                            <button class="btn btn-outline-primary btn-sm" onclick="fetchAdminData()"><i class="bi bi-arrow-clockwise"></i> Segarkan Data</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Waktu Absen</th>
+                                        <th>Badge</th>
+                                        <th>Nama Karyawan</th>
+                                        <th>Jabatan</th>
+                                        <th>Status</th>
+                                        <th>Lokasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyAbsensi">
+                                    <!-- Terisi via JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- TAB 2: KELOLA KARYAWAN (Hanya untuk Admin/Superadmin) -->
@@ -282,6 +309,21 @@
                                 <label class="form-label small">No KK</label>
                                 <input type="text" class="form-control form-control-sm" id="kar_kk">
                             </div>
+                            <!-- Update Kolom Foto KTP untuk menggunakan Kamera/File -->
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Foto KTP</label>
+                                <!-- capture="environment" untuk otomatis buka kamera belakang jika di HP -->
+                                <input type="file" class="form-control form-control-sm" id="kar_fotoKtp_file" accept="image/*" capture="environment">
+                                <input type="hidden" id="kar_fotoKtp_base64">
+                                <div id="kar_fotoKtp_preview" class="mt-1 small d-none"></div>
+                            </div>
+                            <!-- Update Kolom Foto KK untuk menggunakan Kamera/File -->
+                            <div class="col-6 mb-2">
+                                <label class="form-label small">Foto KK</label>
+                                <input type="file" class="form-control form-control-sm" id="kar_fotoKk_file" accept="image/*" capture="environment">
+                                <input type="hidden" id="kar_fotoKk_base64">
+                                <div id="kar_fotoKk_preview" class="mt-1 small d-none"></div>
+                            </div>
                             <div class="col-6 mb-2">
                                 <label class="form-label small">No HP</label>
                                 <input type="text" class="form-control form-control-sm" id="kar_hp">
@@ -350,11 +392,12 @@
 
     <script>
         // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzrizZJF5YK47d29mnFrMSXEGMMnPv14AK-U8XKdjHRq-GM5_-qPMemeyhrz_5HcnO8vA/exec'; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwmBVKAgekX36MHBHjBVxa82yNP1jCD79BjnunQI6ZGHZdYssozA6lDQgtUWtmNUuqiAA/exec'; 
         
         let globalKaryawanList = [];
         let adminKaryawanData = [];
         let adminLoginData = [];
+        let adminAbsensiData = []; // Variabel untuk menampung data absensi
         let currentUserRole = '';
 
         const overlay = document.getElementById('loadingOverlay');
@@ -380,22 +423,77 @@
         }
 
         // ==========================================
+        // PROSES KOMPRESI GAMBAR KAMERA (Baru)
+        // ==========================================
+        // Fitur ini otomatis mengecilkan foto agar muat disimpan di sel Google Sheet
+        function processImage(file, hiddenInputId, previewId) {
+            if (!file) return;
+            
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
+            preview.classList.remove('d-none', 'text-success');
+            preview.classList.add('text-primary');
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 500; // Kompresi maksimal lebar 500px agar tidak melebihi batas G-Sheet
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height = height * (MAX_WIDTH / width);
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Simpan sebagai JPEG format teks base64
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                    document.getElementById(hiddenInputId).value = dataUrl;
+                    
+                    preview.innerHTML = '<i class="bi bi-check-circle-fill"></i> Foto siap disimpan';
+                    preview.classList.remove('text-primary');
+                    preview.classList.add('text-success');
+                }
+            };
+        }
+
+        document.getElementById('kar_fotoKtp_file').addEventListener('change', function(e) {
+            processImage(e.target.files[0], 'kar_fotoKtp_base64', 'kar_fotoKtp_preview');
+        });
+
+        document.getElementById('kar_fotoKk_file').addEventListener('change', function(e) {
+            processImage(e.target.files[0], 'kar_fotoKk_base64', 'kar_fotoKk_preview');
+        });
+
+
+        // ==========================================
         // UI HELPERS (TABS)
         // ==========================================
         function switchTab(tabName) {
             document.querySelectorAll('.nav-pills .nav-link').forEach(el => el.classList.remove('active'));
             const activeTab = document.getElementById('tab-' + tabName);
-            if(activeTab) activeTab.classList.add('active'); // Mencegah error jika tab tidak ada
+            if(activeTab) activeTab.classList.add('active'); 
 
             document.getElementById('sec-absen').classList.add('d-none');
             document.getElementById('sec-karyawan').classList.add('d-none');
             document.getElementById('sec-login').classList.add('d-none');
+            document.getElementById('sec-data-absen').classList.add('d-none'); // Sembunyikan data absen
 
             document.getElementById('sec-' + tabName).classList.remove('d-none');
 
             if(tabName === 'absen') document.getElementById('headerTitle').textContent = 'Formulir Absensi';
             if(tabName === 'karyawan') document.getElementById('headerTitle').textContent = 'Manajemen Karyawan';
             if(tabName === 'login') document.getElementById('headerTitle').textContent = 'Manajemen Akses';
+            if(tabName === 'data-absen') document.getElementById('headerTitle').textContent = 'Laporan Data Absensi';
         }
 
         // ==========================================
@@ -430,18 +528,22 @@
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'block';
                     
-                    // PENYESUAIAN ROLE: 
-                    // Super Admin: Bisa kelola Data Karyawan & Akun Login
-                    // Admin: Hanya bisa kelola Data Karyawan
+                    // PENYESUAIAN ROLE TERBARU: 
+                    // Super Admin: Data Absensi, Data Karyawan, Login
+                    // Admin: Hanya Data Karyawan
                     // User: Hanya Form Absensi
                     if (currentUserRole === 'Super Admin') {
                         document.getElementById('adminTabs').style.display = 'flex';
-                        document.getElementById('li-tab-login').style.display = 'block'; // Tampilkan menu login
-                        switchTab('karyawan'); 
+                        document.getElementById('li-tab-data-absen').style.display = 'block';
+                        document.getElementById('li-tab-karyawan').style.display = 'block';
+                        document.getElementById('li-tab-login').style.display = 'block'; 
+                        switchTab('data-absen'); // Langsung buka halaman Laporan Absen
                         await fetchAdminData();
                     } else if (currentUserRole === 'Admin') {
                         document.getElementById('adminTabs').style.display = 'flex';
-                        document.getElementById('li-tab-login').style.display = 'none'; // Sembunyikan menu login
+                        document.getElementById('li-tab-data-absen').style.display = 'none';
+                        document.getElementById('li-tab-karyawan').style.display = 'block';
+                        document.getElementById('li-tab-login').style.display = 'none'; 
                         switchTab('karyawan'); 
                         await fetchAdminData();
                     } else {
@@ -454,7 +556,6 @@
                     throw new Error(result.message); 
                 }
             } catch (error) {
-                // Menampilkan pesan error asli dari server
                 if(error.message.includes('Unexpected') || error.message.includes('fetch')) {
                     errorDiv.textContent = "Koneksi gagal. Pastikan URL Web App benar & Izin Deploy Apps Script adalah 'Anyone'.";
                 } else {
@@ -478,6 +579,7 @@
             document.getElementById('sec-absen').classList.add('d-none');
             document.getElementById('sec-karyawan').classList.add('d-none');
             document.getElementById('sec-login').classList.add('d-none');
+            document.getElementById('sec-data-absen').classList.add('d-none');
         }
 
         // ==========================================
@@ -501,7 +603,7 @@
                     namaList.innerHTML = '';
                     globalKaryawanList.forEach(emp => {
                         const option = document.createElement('option');
-                        option.value = emp.nama; // Value utamanya sekarang adalah nama
+                        option.value = emp.nama; 
                         namaList.appendChild(option);
                     });
                     
@@ -525,7 +627,6 @@
 
         // Auto-fill Absensi Berdasarkan Nama Karyawan
         document.getElementById('nama').addEventListener('input', function() {
-            // Konversi ke huruf kecil untuk pencarian yang lebih aman
             const inputVal = this.value.toLowerCase();
             const found = globalKaryawanList.find(emp => emp.nama.toLowerCase() === inputVal);
             
@@ -543,7 +644,7 @@
         });
 
         // ==========================================
-        // 3. FETCH ADMIN DATA (CRUD)
+        // 3. FETCH ADMIN DATA (CRUD & REKAP ABSEN)
         // ==========================================
         async function fetchAdminData() {
             showLoading("Memuat Database...");
@@ -555,10 +656,13 @@
                 });
                 const result = await response.json();
                 if (result.status === "success") {
-                    adminKaryawanData = result.karyawan;
-                    adminLoginData = result.login;
+                    adminKaryawanData = result.karyawan || [];
+                    adminLoginData = result.login || [];
+                    adminAbsensiData = result.absensi || []; // Ambil data absensi
+                    
                     renderKaryawanTable();
                     renderLoginTable();
+                    renderAbsensiTable(); // Tampilkan tabel absensi
                 } else {
                     showAlert("Error memuat database: " + result.message);
                 }
@@ -569,11 +673,48 @@
             } finally { hideLoading(); }
         }
 
+        function renderAbsensiTable() {
+            const tbody = document.getElementById('tbodyAbsensi');
+            tbody.innerHTML = '';
+            if(adminAbsensiData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada data absensi/Backend Apps Script belum diupdate</td></tr>';
+                return;
+            }
+
+            adminAbsensiData.forEach((row) => {
+                if(row[0] === "") return;
+                const lat = row[6] ? row[6].toString().trim() : '';
+                const lng = row[7] ? row[7].toString().trim() : '';
+                
+                let location = '-';
+                if(lat && lng && lat !== '-' && lng !== '-') {
+                    location = `<a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" class="badge bg-info text-decoration-none"><i class="bi bi-geo-alt"></i> Cek Map</a>`;
+                }
+
+                // Warna badge status absensi
+                let statusBadge = 'bg-secondary';
+                if(row[8] === 'Hadir') statusBadge = 'bg-success';
+                else if(row[8] === 'Izin' || row[8] === 'Terlambat') statusBadge = 'bg-warning text-dark';
+                else if(row[8] === 'Sakit') statusBadge = 'bg-primary';
+                else if(row[8] === 'Tanpa Keterangan') statusBadge = 'bg-danger';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="small">${row[1]}</td>
+                        <td><strong>${row[4]}</strong></td>
+                        <td>${row[2]}</td>
+                        <td>${row[5]}</td>
+                        <td><span class="badge ${statusBadge}">${row[8] || '-'}</span></td>
+                        <td>${location}</td>
+                    </tr>`;
+            });
+        }
+
         function renderKaryawanTable() {
             const tbody = document.getElementById('tbodyKaryawan');
             tbody.innerHTML = '';
             adminKaryawanData.forEach((row, index) => {
-                if(row[0] === "") return; // Skip empty rows
+                if(row[0] === "") return; 
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${row[0]}</strong></td>
@@ -615,6 +756,12 @@
             document.getElementById('kar_action_method').value = method;
             document.getElementById('kar_badge').readOnly = (method === 'edit');
             
+            // Mengosongkan data dan pratinjau gambar saat membuka form
+            document.getElementById('kar_fotoKtp_base64').value = "";
+            document.getElementById('kar_fotoKk_base64').value = "";
+            document.getElementById('kar_fotoKtp_preview').classList.add('d-none');
+            document.getElementById('kar_fotoKk_preview').classList.add('d-none');
+            
             if(method === 'edit') {
                 const row = adminKaryawanData[index];
                 document.getElementById('modalKaryawanTitle').textContent = 'Edit Karyawan';
@@ -627,6 +774,22 @@
                 document.getElementById('kar_statusNikah').value = row[5];
                 document.getElementById('kar_nik').value = row[6];
                 document.getElementById('kar_kk').value = row[7];
+                
+                // Set data foto jika sudah ada di database
+                document.getElementById('kar_fotoKtp_base64').value = row[8];
+                if(row[8] && row[8].toString().trim() !== "") {
+                    document.getElementById('kar_fotoKtp_preview').innerHTML = '<i class="bi bi-check-circle-fill"></i> Data foto sudah ada';
+                    document.getElementById('kar_fotoKtp_preview').classList.remove('d-none', 'text-primary');
+                    document.getElementById('kar_fotoKtp_preview').classList.add('text-success');
+                }
+
+                document.getElementById('kar_fotoKk_base64').value = row[9];
+                if(row[9] && row[9].toString().trim() !== "") {
+                    document.getElementById('kar_fotoKk_preview').innerHTML = '<i class="bi bi-check-circle-fill"></i> Data foto sudah ada';
+                    document.getElementById('kar_fotoKk_preview').classList.remove('d-none', 'text-primary');
+                    document.getElementById('kar_fotoKk_preview').classList.add('text-success');
+                }
+
                 document.getElementById('kar_hp').value = row[10];
                 document.getElementById('kar_ket').value = row[11];
             } else {
@@ -651,6 +814,8 @@
                     statusNikah: document.getElementById('kar_statusNikah').value,
                     nik: document.getElementById('kar_nik').value,
                     noKk: document.getElementById('kar_kk').value,
+                    fotoKtp: document.getElementById('kar_fotoKtp_base64').value, // Ambil base64 hasil kompresi
+                    fotoKk: document.getElementById('kar_fotoKk_base64').value,   // Ambil base64 hasil kompresi
                     hp: document.getElementById('kar_hp').value,
                     ket: document.getElementById('kar_ket').value
                 }
